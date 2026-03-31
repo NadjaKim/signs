@@ -1,19 +1,16 @@
-Описание проекта
+# React + Vite
 
-Проект направлен на разработку системы распознавания жестов для задачи подтверждения, что перед системой находится реальный человек (а не запись, бот или подмена).
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-Пользователю предлагается выполнить определённый жест (или последовательность жестов), после чего система:
+Currently, two official plugins are available:
 
-определяет положение руки,
-анализирует ключевые точки,
-классифицирует жест,
-принимает решение: человек / не человек.
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-План реализации:
+## React Compiler
 
-1. Воспользоваться предобученными моделями от OpenCV: pose_deploy.prototxt и pose_iter_102000.caffemodel , и свернуть их в один сверточный слой. Воспользоваться ими для аннотации рук 22мя точками. (Шарапов)
-2. Воспользоваться вышеупомянутыми моделями для визуализации тепловых карт (heat_map) для каждой из 22 точки скелета. Сделать анализ, понять, в каких местах сеть "уверена", что находится определенный сустав (Ким Ирина)
-3. Найти несколько опенсорс моделей, которые занимаются классификацией жестов. Найти лучшую. Проверить на нашем датасете и дообучить. Выбрать лучшие жесты (исходя из анализа heatmaps от Ирины), удалить сомнительные жесты (Ким Надежда)
-4. Реализовать интерфейс (сайт) и внедрить туда модель (Ким Дарья, Кадрилеев)
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-Лидер: Ким Дарья и Ким Надежда
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
