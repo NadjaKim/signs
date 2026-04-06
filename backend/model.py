@@ -1,50 +1,65 @@
 import cv2
+import numpy as np
 import mediapipe as mp
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 
+app = FastAPI()
+
+# Разрешаем CORS (полезно при разработке)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# --- Инициализация модели MediaPipe ---
 BaseOptions = mp.tasks.BaseOptions
 GestureRecognizer = mp.tasks.vision.GestureRecognizer
 GestureRecognizerOptions = mp.tasks.vision.GestureRecognizerOptions
 VisionRunningMode = mp.tasks.vision.RunningMode
 
-model_path = "gesture_recognizer.task"
-
+model_path = "gesture_recognizer.task" # Убедись, что файл лежит рядом с app.py
 options = GestureRecognizerOptions(
     base_options=BaseOptions(model_asset_path=model_path),
     running_mode=VisionRunningMode.IMAGE
 )
-
 recognizer = GestureRecognizer.create_from_options(options)
+# --------------------------------------
 
-cap = cv2.VideoCapture(0)
+@app.websocket("/ws/gesture")
+async def gesture_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            # Получаем JPEG картинку в виде байтов с фронтенда
+            data = await websocket.receive_bytes()
+            
+            # Конвертируем байты в numpy массив, а затем в OpenCV изображение
+            nparr = np.frombuffer(data, np.uint8)
+            frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-gesture_text = ""
+            if frame is None:
+                continue
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
+            # MediaPipe требует формат RGB
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            mp_image = mp.Image(
+                image_format=mp.ImageFormat.SRGB,
+                data=rgb_frame
+            )
 
-    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            # Распознаем жест
+            result = recognizer.recognize(mp_image)
 
-    mp_image = mp.Image(
-        image_format=mp.ImageFormat.SRGB,
-        data=rgb_frame
-    )
+            gesture_text = ""
+            if result.gestures:
+                gesture_text = result.gestures[0][0].category_name
 
-    result = recognizer.recognize(mp_image)
+            # Отправляем результат обратно на фронтенд
+            await websocket.send_text(gesture_text)
 
-    if result.gestures:
-        gesture_text = result.gestures[0][0].category_name
-    else:
-        gesture_text = ""
-
-    cv2.putText(frame, gesture_text, (50, 50),
-                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-
-    cv2.imshow("Gesture", frame)
-
-    if cv2.waitKey(1) & 0xFF == 27:
-        break
-
-cap.release()
-cv2.destroyAllWindows()
+    except WebSocketDisconnect:
+        print("Клиент отключился")
