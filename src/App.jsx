@@ -1,27 +1,35 @@
 import { useEffect, useRef, useState } from "react";
 
+
+import thumbUp from "./gestures/thumb_up.jpg";
+import thumbDown from "./gestures/thumb_down.jpg";
+import closedFist from "./gestures/closed_fist.jpg";
+import openPalm from "./gestures/open_palm.jpg";
+import victory from "./gestures/victory.jpg";
+import pointingUp from "./gestures/pointing_up.jpg";
+import iloveyou from "./gestures/iloveyou.jpg";
+
 function App() {
   const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const wsRef = useRef(null);
-  
   const [error, setError] = useState(null);
-  const [gesture, setGesture] = useState("");
+  const [selected, setSelected] = useState([]);
+
+  const gestures = [
+    { name: "Thumb Up", img: thumbUp },
+    { name: "Thumb Down", img: thumbDown },
+    { name: "Closed Fist", img: closedFist },
+    { name: "Open Palm", img: openPalm },
+    { name: "Victory", img: victory },
+    { name: "Pointing Up", img: pointingUp },
+    { name: "ILoveYou", img: iloveyou },
+  ];
+
+  const getRandomGestures = () => {
+    const shuffled = [...gestures].sort(() => Math.random() - 0.5);
+    setSelected(shuffled.slice(0, 3));
+  };
 
   useEffect(() => {
-    // 1. Устанавливаем WebSocket соединение с бэкендом
-    wsRef.current = new WebSocket("ws://localhost:8000/ws/gesture");
-
-    wsRef.current.onmessage = (event) => {
-      // Получаем ответ от бэкенда и обновляем стейт
-      setGesture(event.data);
-    };
-
-    wsRef.current.onerror = (err) => {
-      console.error("Ошибка WebSocket:", err);
-    };
-
-    // 2. Включаем камеру
     const enableCamera = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -32,63 +40,18 @@ function App() {
           videoRef.current.srcObject = stream;
         }
       } catch (err) {
-        console.error("Ошибка доступа к камере:", err);
-        setError("Не удалось получить доступ к камере");
+        console.error(err);
+        setError("Нет доступа к камере");
       }
     };
 
     enableCamera();
-
-    // Очистка при размонтировании компонента
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    // 3. Запускаем цикл отправки кадров
-    const intervalId = setInterval(() => {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      const ws = wsRef.current;
-
-      // Убеждаемся, что видео идет и сокет открыт
-      if (video && canvas && ws?.readyState === WebSocket.OPEN) {
-        if (video.videoWidth > 0 && video.videoHeight > 0) {
-          const context = canvas.getContext("2d");
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-
-          // Рисуем текущий кадр видео на канвасе
-          context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-          // Конвертируем канвас в Blob (JPEG) и отправляем
-          canvas.toBlob(
-            (blob) => {
-              if (blob) {
-                ws.send(blob);
-              }
-            },
-            "image/jpeg",
-            0.7 // Качество 70% для сжатия и скорости передачи
-          );
-        }
-      }
-    }, 100); // <-- 100 мс (10 кадров в секунду). Это оптимально!
-
-    return () => clearInterval(intervalId);
+    getRandomGestures();
   }, []);
 
   return (
     <div style={{ textAlign: "center", marginTop: "20px" }}>
-      <h1>Camera Stream</h1>
-
-      {/* Показываем распознанный жест */}
-      <h2 style={{ color: "green", minHeight: "40px" }}>
-        {gesture ? `Распознан жест: ${gesture}` : "Жест не распознан / Ожидание..."}
-      </h2>
+      <h1>Camera + Gestures</h1>
 
       {error && <p style={{ color: "red" }}>{error}</p>}
 
@@ -98,13 +61,33 @@ function App() {
         playsInline
         style={{
           width: "600px",
-          borderRadius: "10px",
           border: "2px solid #ccc",
+          borderRadius: "10px",
         }}
       />
 
-      {/* Скрытый канвас для захвата кадров */}
-      <canvas ref={canvasRef} style={{ display: "none" }} />
+      
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          marginTop: "20px",
+        }}
+      >
+        {selected.map((g, i) => (
+          <div key={i} style={{ margin: "10px" }}>
+            <img
+              src={g.img}
+              alt={g.name}
+              width="120"
+              onError={(e) => {
+                console.log("Ошибка картинки:", g.img);
+              }}
+            />
+            <p>{g.name}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
