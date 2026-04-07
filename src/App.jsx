@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 
-import thumbUp from "./gestures/thumb_up.jpg";
-import thumbDown from "./gestures/thumb_down.jpg";
-import closedFist from "./gestures/closed_fist.jpg";
-import openPalm from "./gestures/open_palm.jpg";
-import victory from "./gestures/victory.jpg";
-import pointingUp from "./gestures/pointing_up.jpg";
-import iloveyou from "./gestures/iloveyou.jpg";
+import thumbUp from "./gestures/thumb_up.png";
+import thumbDown from "./gestures/thumb_down.png";
+import closedFist from "./gestures/closed_fist.png";
+import openPalm from "./gestures/open_palm.png";
+import victory from "./gestures/victory.png";
+import pointingUp from "./gestures/pointing_up.png";
+import iloveyou from "./gestures/iloveyou.png";
 
 function App() {
   const videoRef = useRef(null);
@@ -20,12 +20,12 @@ function App() {
   const [selected, setSelected] = useState([]);
 
   const gestures = [
-    { name: "Thumb_Up", img: thumbUp },
-    { name: "Thumb_Down", img: thumbDown },
+    { name: "Thumb Up", img: thumbUp },
+    { name: "Thumb Down", img: thumbDown },
     { name: "Closed Fist", img: closedFist },
-    { name: "Open_Palm", img: openPalm },
+    { name: "Open Palm", img: openPalm },
     { name: "Victory", img: victory },
-    { name: "Pointing_Up", img: pointingUp },
+    { name: "Pointing Up", img: pointingUp },
     { name: "ILoveYou", img: iloveyou },
   ];
 
@@ -36,7 +36,7 @@ function App() {
 
   useEffect(() => {
     // 1. WebSocket
-    wsRef.current = new WebSocket("ws://localhost:8000/ws/gesture");
+    wsRef.current = new WebSocket("ws://localhost:5173/ws/gesture");
 
     wsRef.current.onmessage = (event) => {
       setGesture(event.data);
