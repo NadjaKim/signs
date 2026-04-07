@@ -158,52 +158,79 @@ function App() {
 
   return (
     <div className="app">
-      <h1 className="app__title">Gesture Auth Demo</h1>
-
-      <button
-        className={`app__button ${isCameraOn ? "app__button--off" : ""}`}
-        onClick={() => setIsCameraOn((prev) => !prev)}
-      >
-        {isCameraOn ? "Выключить камеру" : "Включить камеру"}
-      </button>
-
-      <div className="app__status">
-        {gesture
-          ? `Распознан жест: ${gesture}`
-          : "Жест не распознан / Ожидание..."}
+      <div className="app__header">
+        <h1 className="app__title">Gesture Authentication</h1>
+        <div className="app__progress">Step {Math.min(currentIndex + 1, 3)} of 3</div>
+        <div className="app__progress-bar">
+          <div
+            className="app__progress-fill"
+            style={{
+              width: `${(completed.filter(Boolean).length / 3) * 100}%`,
+            }} />
+        </div>
       </div>
-
-      {error && <div className="app__error">{error}</div>}
-
-      <video ref={videoRef} autoPlay playsInline className="app__video" />
-
-      <div className="app__gestures">
-        {selected.map((g, i) => {
-          const isActive = i === currentIndex;
-          const isDone = completed[i];
-
-          return (
-            <div
-              key={i}
-              className={`gesture-card 
-              ${isActive ? "gesture-card--active" : ""} 
-              ${isDone ? "gesture-card--done" : ""}`}
-            >
-              <img
-                src={g.img}
-                alt={g.name}
-                className="gesture-card__img"
-                onError={(e) => {
-                  console.log("Ошибка картинки:", g.img);
-                  e.target.style.display = "none";
-                }}
-              />
-              <div className="gesture-card__name">{g.name}</div>
-            </div>
-          );
-        })}
+      <div className="app__content">
+        <div className="camera-card">
+          <div className="camera-card__media">
+            {!isCameraOn && (
+              <div className="camera-card__placeholder">
+                <div className="camera-card__placeholder-text">
+                  Camera is off
+                </div>
+              </div>
+            )}
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              className={`camera-card__video ${!isCameraOn ? "camera-card__video--hidden" : ""
+                }`}
+            />
+          </div>
+          <button
+            className={`camera-card__button ${isCameraOn ? "camera-card__button--off" : ""
+              }`}
+            onClick={() => setIsCameraOn((prev) => !prev)}>
+            {isCameraOn ? "Turn Off Camera" : "Turn On Camera"}
+          </button>
+        </div>
+        <div className="steps-card">
+          <div className="steps-card__list">
+            {selected.map((g, i) => {
+              const isActive = i === currentIndex;
+              const isDone = completed[i];
+              return (
+                <div
+                  key={i}
+                  className={`step ${isActive ? "step--active" : ""} ${isDone ? "step--done" : ""}`}>
+                  <div className="step__icon">
+                    {isDone ? "✓" : isActive ? "●" : i + 1}
+                  </div>
+                  <img src={g.img} alt={g.name} className="step__img" />
+                  <div className="step__info">
+                    <div className="step__name">{g.name}</div>
+                    <div className="step__status">
+                      {isDone
+                        ? "Completed"
+                        : isActive
+                          ? "Show this gesture"
+                          : "Waiting"}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="steps-card__status">
+            {gesture
+              ? `Detected: ${gesture}`
+              : isCameraOn
+                ? "Waiting for gesture..."
+                : "Camera is off"}
+          </div>
+          {error && <div className="steps-card__error">{error}</div>}
+        </div>
       </div>
-
       <canvas ref={canvasRef} style={{ display: "none" }} />
     </div>
   );

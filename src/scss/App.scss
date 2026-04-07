@@ -1,86 +1,179 @@
 .app {
-  text-align: center;
   padding: 30px;
   font-family: Arial, sans-serif;
+  background: #f5f7fb;
+  min-height: 100vh;
+
+  &__header {
+    text-align: center;
+    margin-bottom: 30px;
+  }
 
   &__title {
     font-size: 28px;
-    margin-bottom: 20px;
+    margin-bottom: 8px;
+  }
+
+  &__progress {
+    color: #666;
+  }
+
+  &__content {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 30px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  &__progress-bar {
+    width: 300px;
+    height: 6px;
+    background: #e0e0e0;
+    border-radius: 10px;
+    margin: 10px auto 0;
+    overflow: hidden;
+  }
+
+  &__progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4caf50, #66bb6a);
+    transition: width 0.3s ease;
+  }
+}
+
+.camera-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+  text-align: center;
+
+  &__media {
+    position: relative;
+    width: 100%;
+    height: 340px;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  &__video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+
+    &--hidden {
+      display: none;
+    }
+  }
+
+  &__placeholder {
+    width: 100%;
+    height: 100%;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &-text {
+      color: #aaa;
+      font-size: 18px;
+      letter-spacing: 0.5px;
+    }
   }
 
   &__button {
-    padding: 12px 24px;
-    font-size: 16px;
+    padding: 10px 20px;
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    margin-bottom: 20px;
-    background-color: #4caf50;
+    background: #4caf50;
     color: white;
-    transition: 0.2s;
-
-    &:hover {
-      background-color: #43a047;
-    }
+    margin-top: 20px;
 
     &--off {
-      background-color: #f44336;
-
-      &:hover {
-        background-color: #e53935;
-      }
+      background: #f44336;
     }
+  }
+}
+
+.steps-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 20px;
   }
 
   &__status {
-    font-size: 18px;
-    min-height: 30px;
-    margin-bottom: 15px;
-    color: #2e7d32;
+    font-size: 14px;
+    color: #333;
+    margin-bottom: 10px;
   }
 
   &__error {
     color: red;
-    margin-bottom: 10px;
-  }
-
-  &__video {
-    width: 600px;
-    border-radius: 12px;
-    border: 2px solid #ddd;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  }
-
-  &__gestures {
-    display: flex;
-    justify-content: center;
-    margin-top: 30px;
-    gap: 20px;
+    font-size: 14px;
   }
 }
 
-.gesture-card {
+.step {
   display: flex;
-  flex-direction: column;
   align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 2px solid #eee;
+  transition: 0.2s;
 
   &__img {
-    width: 120px;
-    border-radius: 12px;
-    border: 2px solid #ccc;
-    transition: 0.3s;
-  }
-
-  &--active .gesture-card__img {
-    border: 4px solid orange;
-  }
-
-  &--done .gesture-card__img {
-    border: 4px solid green;
+    width: 50px;
+    height: 50px;
   }
 
   &__name {
-    margin-top: 8px;
+    font-weight: 500;
+  }
+
+  &__status {
+    font-size: 12px;
+    color: #777;
+  }
+
+  &--active {
+    border-color: orange;
+    background: #fff7e6;
+  }
+
+  &--done {
+    border-color: green;
+    background: #e8f5e9;
+  }
+
+  &__icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 14px;
+    font-weight: bold;
+  }
+
+  &--active &__icon {
+    background: orange;
+    color: white;
+  }
+
+  &--done &__icon {
+    background: green;
+    color: white;
   }
 }
