@@ -12,12 +12,13 @@ function App() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const wsRef = useRef(null);
-  
+
   const [error, setError] = useState(null);
   const [gesture, setGesture] = useState("");
 
-  
   const [selected, setSelected] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [completed, setCompleted] = useState([false, false, false]);
 
   const gestures = [
     { name: "Thumb Up", img: thumbUp },
@@ -31,12 +32,16 @@ function App() {
 
   const getRandomGestures = () => {
     const shuffled = [...gestures].sort(() => Math.random() - 0.5);
-    setSelected(shuffled.slice(0, 3));
+    const newSelection = shuffled.slice(0, 3);
+
+    setSelected(newSelection);
+    setCurrentIndex(0);
+    setCompleted([false, false, false]);
   };
 
   useEffect(() => {
-    // 1. WebSocket
-    wsRef.current = new WebSocket("ws://localhost:5173/ws/gesture");
+    // WebSocket
+    wsRef.current = new WebSocket("ws://localhost:8000/ws/gesture");
 
     wsRef.current.onmessage = (event) => {
       setGesture(event.data);
@@ -46,7 +51,7 @@ function App() {
       console.error("Ошибка WebSocket:", err);
     };
 
-    // 2. Камера
+    // Камера
     const enableCamera = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -63,8 +68,6 @@ function App() {
     };
 
     enableCamera();
-
-  
     getRandomGestures();
 
     return () => {
@@ -73,6 +76,29 @@ function App() {
       }
     };
   }, []);
+
+  const normalize = (str) => {
+    return str
+      ?.toLowerCase()
+      .replace(/[_\s]+/g, "") // убираем пробелы и _
+      .trim();
+  };
+
+  useEffect(() => {
+    if (!gesture || selected.length === 0) return;
+
+    const expectedGesture = selected[currentIndex]?.name;
+
+    if (normalize(gesture) === normalize(expectedGesture)) {
+      setCompleted((prev) => {
+        const updated = [...prev];
+        updated[currentIndex] = true;
+        return updated;
+      });
+
+      setCurrentIndex((prev) => prev + 1);
+    }
+  }, [gesture, selected, currentIndex]);
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -114,9 +140,7 @@ function App() {
           ? `Распознан жест: ${gesture}`
           : "Жест не распознан / Ожидание..."}
       </h2>
-
       {error && <p style={{ color: "red" }}>{error}</p>}
-
       <video
         ref={videoRef}
         autoPlay
@@ -128,6 +152,7 @@ function App() {
         }}
       />
 
+      {/* 🔥 Жесты */}
       <div
         style={{
           display: "flex",
@@ -136,11 +161,20 @@ function App() {
         }}
       >
         {selected.map((g, i) => (
-          <div key={i} style={{ margin: "10px" }}>
+          <div key={i} style={{ margin: "10px", textAlign: "center" }}>
             <img
               src={g.img}
               alt={g.name}
               width="120"
+              style={{
+                border: completed[i]
+                  ? "4px solid green"
+                  : i === currentIndex
+                    ? "4px solid orange"
+                    : "2px solid #ccc",
+                borderRadius: "10px",
+                transition: "0.3s",
+              }}
               onError={(e) => {
                 console.log("Ошибка картинки:", g.img);
                 e.target.style.display = "none";
