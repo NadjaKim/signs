@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import "./scss/App.scss";
 import thumbUp from "./gestures/thumb_up.png";
 import thumbDown from "./gestures/thumb_down.png";
 import closedFist from "./gestures/closed_fist.png";
@@ -12,6 +13,7 @@ function App() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const wsRef = useRef(null);
+  const streamRef = useRef(null); // 👈 храним поток
 
   const [error, setError] = useState(null);
   const [gesture, setGesture] = useState("");
@@ -19,6 +21,8 @@ function App() {
   const [selected, setSelected] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [completed, setCompleted] = useState([false, false, false]);
+
+  const [isCameraOn, setIsCameraOn] = useState(false); // 👈 камера выключена по дефолту
 
   const gestures = [
     { name: "Thumb Up", img: thumbUp },
@@ -39,8 +43,8 @@ function App() {
     setCompleted([false, false, false]);
   };
 
+  // 🔌 WebSocket (оставляем как есть)
   useEffect(() => {
-    // WebSocket
     wsRef.current = new WebSocket("ws://localhost:8000/ws/gesture");
 
     wsRef.current.onmessage = (event) => {
@@ -51,12 +55,24 @@ function App() {
       console.error("Ошибка WebSocket:", err);
     };
 
-    // Камера
+    getRandomGestures();
+
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, []);
+
+  // 🎥 Управление камерой
+  useEffect(() => {
     const enableCamera = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: true,
         });
+
+        streamRef.current = stream;
 
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
@@ -67,23 +83,30 @@ function App() {
       }
     };
 
-    enableCamera();
-    getRandomGestures();
+    const disableCamera = () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
 
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
       }
     };
-  }, []);
 
+    if (isCameraOn) {
+      enableCamera();
+    } else {
+      disableCamera();
+    }
+  }, [isCameraOn]);
+
+  // 🔄 нормализация
   const normalize = (str) => {
-    return str
-      ?.toLowerCase()
-      .replace(/[_\s]+/g, "") // убираем пробелы и _
-      .trim();
+    return str?.toLowerCase().replace(/[_\s]+/g, "").trim();
   };
 
+  // 🔥 Проверка жестов
   useEffect(() => {
     if (!gesture || selected.length === 0) return;
 
@@ -100,8 +123,11 @@ function App() {
     }
   }, [gesture, selected, currentIndex]);
 
+  // 📸 отправка кадров (только если камера включена!)
   useEffect(() => {
     const intervalId = setInterval(() => {
+      if (!isCameraOn) return; // 👈 важно!
+
       const video = videoRef.current;
       const canvas = canvasRef.current;
       const ws = wsRef.current;
@@ -128,61 +154,54 @@ function App() {
     }, 100);
 
     return () => clearInterval(intervalId);
-  }, []);
+  }, [isCameraOn]);
 
   return (
-    <div style={{ textAlign: "center", marginTop: "20px" }}>
-      <h1>Camera Stream</h1>
+    <div className="app">
+      <h1 className="app__title">Gesture Auth Demo</h1>
 
-      {/* распознанный жест */}
-      <h2 style={{ color: "green", minHeight: "40px" }}>
+      <button
+        className={`app__button ${isCameraOn ? "app__button--off" : ""}`}
+        onClick={() => setIsCameraOn((prev) => !prev)}
+      >
+        {isCameraOn ? "Выключить камеру" : "Включить камеру"}
+      </button>
+
+      <div className="app__status">
         {gesture
           ? `Распознан жест: ${gesture}`
           : "Жест не распознан / Ожидание..."}
-      </h2>
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        style={{
-          width: "600px",
-          borderRadius: "10px",
-          border: "2px solid #ccc",
-        }}
-      />
+      </div>
 
-      {/* 🔥 Жесты */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          marginTop: "20px",
-        }}
-      >
-        {selected.map((g, i) => (
-          <div key={i} style={{ margin: "10px", textAlign: "center" }}>
-            <img
-              src={g.img}
-              alt={g.name}
-              width="120"
-              style={{
-                border: completed[i]
-                  ? "4px solid green"
-                  : i === currentIndex
-                    ? "4px solid orange"
-                    : "2px solid #ccc",
-                borderRadius: "10px",
-                transition: "0.3s",
-              }}
-              onError={(e) => {
-                console.log("Ошибка картинки:", g.img);
-                e.target.style.display = "none";
-              }}
-            />
-            <p>{g.name}</p>
-          </div>
-        ))}
+      {error && <div className="app__error">{error}</div>}
+
+      <video ref={videoRef} autoPlay playsInline className="app__video" />
+
+      <div className="app__gestures">
+        {selected.map((g, i) => {
+          const isActive = i === currentIndex;
+          const isDone = completed[i];
+
+          return (
+            <div
+              key={i}
+              className={`gesture-card 
+              ${isActive ? "gesture-card--active" : ""} 
+              ${isDone ? "gesture-card--done" : ""}`}
+            >
+              <img
+                src={g.img}
+                alt={g.name}
+                className="gesture-card__img"
+                onError={(e) => {
+                  console.log("Ошибка картинки:", g.img);
+                  e.target.style.display = "none";
+                }}
+              />
+              <div className="gesture-card__name">{g.name}</div>
+            </div>
+          );
+        })}
       </div>
 
       <canvas ref={canvasRef} style={{ display: "none" }} />
