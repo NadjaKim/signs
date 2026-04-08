@@ -1,69 +1,58 @@
 import cv2
 import numpy as np
 import mediapipe as mp
+import os
+import sys
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
+# Определяем путь к ресурсам (для работы внутри .exe)
+if getattr(sys, 'frozen', False):
+    base_path = sys._MEIPASS
+else:
+    base_path = os.path.dirname(os.path.abspath(__file__))
+
 app = FastAPI()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+# Инициализация MediaPipe
+model_path = os.path.join(base_path, "gesture_recognizer.task")
+options = mp.tasks.vision.GestureRecognizerOptions(
+    base_options=mp.tasks.BaseOptions(model_asset_path=model_path),
+    running_mode=mp.tasks.vision.RunningMode.IMAGE
 )
-
-BaseOptions = mp.tasks.BaseOptions
-GestureRecognizer = mp.tasks.vision.GestureRecognizer
-GestureRecognizerOptions = mp.tasks.vision.GestureRecognizerOptions
-VisionRunningMode = mp.tasks.vision.RunningMode
-
-model_path = "gesture_recognizer.task" 
-options = GestureRecognizerOptions(
-    base_options=BaseOptions(model_asset_path=model_path),
-    running_mode=VisionRunningMode.IMAGE
-)
-recognizer = GestureRecognizer.create_from_options(options)
+recognizer = mp.tasks.vision.GestureRecognizer.create_from_options(options)
 
 @app.websocket("/ws/gesture")
 async def gesture_endpoint(websocket: WebSocket):
     await websocket.accept()
     try:
         while True:
-            
             data = await websocket.receive_bytes()
-
             nparr = np.frombuffer(data, np.uint8)
             frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-
-            if frame is None:
-                continue
-
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            mp_image = mp.Image(
-                image_format=mp.ImageFormat.SRGB,
-                data=rgb_frame
-            )
-
-            result = recognizer.recognize(mp_image)
-
-            gesture_text = ""
-            if result.gestures:
-                gesture_text = result.gestures[0][0].category_name
-
-            await websocket.send_text(gesture_text)
-
+            if frame is not None:
+                mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                result = recognizer.recognize(mp_image)
+                gesture = result.gestures[0][0].category_name if result.gestures else ""
+                await websocket.send_text(gesture)
     except WebSocketDisconnect:
-        print("Клиент отключился")
+        pass
 
-app.mount("/assets", StaticFiles(directory="dist/assets"), name="assets")
+# Раздача фронтенда (максимально просто)
+dist_path = os.path.join(base_path, "dist")
 
-@app.get("/")
-async def serve_react_app():
-    return FileResponse("dist/index.html")
+# Сначала монтируем статику (JS/CSS), которая лежит в dist/assets
+if os.path.exists(os.path.join(dist_path, "assets")):
+    app.mount("/assets", StaticFiles(directory=os.path.join(dist_path, "assets")), name="assets")
+
+# Главная страница и остальные файлы (favicon и т.д.)
+@app.get("/{full_path:path}")
+async def serve_frontend(full_path: str):
+    file_path = os.path.join(dist_path, full_path)
+    if full_path != "" and os.path.exists(file_path):
+        return FileResponse(file_path)
+    return FileResponse(os.path.join(dist_path, "index.html"))
 
 if __name__ == "__main__":
     import uvicorn
