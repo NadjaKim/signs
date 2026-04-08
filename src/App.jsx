@@ -32,6 +32,42 @@ function App() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [noGestureTimer, setNoGestureTimer] = useState(null);
 
+  const sendLogToServer = () => {
+    const combination = selected.map(g => g.name).join("-");
+
+    const now = new Date();
+    const tashkentTime = now.toLocaleString('ru-RU', { 
+      timeZone: 'Asia/Tashkent',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    }).replace(',', '');
+
+    fetch("http://localhost:8000/save-log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        logs: [{
+          timestamp: tashkentTime,
+          combination: combination,
+          status: "success"   
+        }]
+      })
+    })
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
+        return res.json();
+      })
+      .then(data => {
+        console.log(" Лог успешно записан на сервер:", data);
+      })
+      .catch(err => {
+        console.error(" Ошибка при отправке лога:", err);
+      });
+  };
   const gestures = [
     { name: "Thumb Up", img: thumbUp },
     { name: "Thumb Down", img: thumbDown },
@@ -153,6 +189,7 @@ function App() {
 
       if (currentIndex + 1 === 3) {
         setIsSuccess(true);
+        sendLogToServer();     
         return;
       }
 

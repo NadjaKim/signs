@@ -3,19 +3,35 @@ import numpy as np
 import mediapipe as mp
 import os
 import sys
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+import csv
+from datetime import datetime
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-# Определяем путь к ресурсам (для работы внутри .exe)
 if getattr(sys, 'frozen', False):
     base_path = sys._MEIPASS
 else:
-    base_path = os.path.dirname(os.path.abspath(__file__))
+    base_path = os.path.dirname(os.path.abspath(file))
 
 app = FastAPI()
 
-# Инициализация MediaPipe
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+LOG_FILE = os.path.join(base_path, "gesture_logs.csv")
+
+if not os.path.exists(LOG_FILE):
+    with open(LOG_FILE, mode='w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(["timestamp", "combination", "status"])
+
 model_path = os.path.join(base_path, "gesture_recognizer.task")
 options = mp.tasks.vision.GestureRecognizerOptions(
     base_options=mp.tasks.BaseOptions(model_asset_path=model_path),
@@ -39,14 +55,27 @@ async def gesture_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         pass
 
-# Раздача фронтенда (максимально просто)
+@app.post("/save-log")
+async def save_log(request: Request):
+    try:
+        data = await request.json()
+        logs = data.get("logs", [])
+        with open(LOG_FILE, mode='a', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            for log in logs:
+                timestamp = log.get("timestamp", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                combination = log.get("combination", "")
+                status = log.get("status", "success")
+                writer.writerow([timestamp, combination, status])
+        return {"status": "ok"}
+    except Exception:
+        return {"status": "error"}
+
 dist_path = os.path.join(base_path, "dist")
 
-# Сначала монтируем статику (JS/CSS), которая лежит в dist/assets
 if os.path.exists(os.path.join(dist_path, "assets")):
     app.mount("/assets", StaticFiles(directory=os.path.join(dist_path, "assets")), name="assets")
 
-# Главная страница и остальные файлы (favicon и т.д.)
 @app.get("/{full_path:path}")
 async def serve_frontend(full_path: str):
     file_path = os.path.join(dist_path, full_path)
@@ -54,6 +83,6 @@ async def serve_frontend(full_path: str):
         return FileResponse(file_path)
     return FileResponse(os.path.join(dist_path, "index.html"))
 
-if __name__ == "__main__":
+if name == "main":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)
