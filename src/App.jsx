@@ -14,6 +14,7 @@ function App() {
   const canvasRef = useRef(null);
   const wsRef = useRef(null);
   const streamRef = useRef(null);
+  const hasCameraBeenOn = useRef(false);
 
   const [error, setError] = useState(null);
   const [gesture, setGesture] = useState("");
@@ -29,6 +30,7 @@ function App() {
   const [isLocked, setIsLocked] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [noGestureTimer, setNoGestureTimer] = useState(null);
 
   const gestures = [
     { name: "Thumb Up", img: thumbUp },
@@ -50,16 +52,11 @@ function App() {
 
   useEffect(() => {
     wsRef.current = new WebSocket("ws://localhost:8000/ws/gesture");
-
-    wsRef.current.onmessage = (event) => {
-      setGesture(event.data);
-    };
+    wsRef.current.onmessage = (event) => setGesture(event.data);
 
     getRandomGestures();
 
-    return () => {
-      if (wsRef.current) wsRef.current.close();
-    };
+    return () => wsRef.current?.close();
   }, []);
 
   useEffect(() => {
@@ -68,16 +65,15 @@ function App() {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         streamRef.current = stream;
         if (videoRef.current) videoRef.current.srcObject = stream;
+        hasCameraBeenOn.current = true;
       } catch {
         setError("Не удалось получить доступ к камере");
       }
     };
 
     const disableCamera = () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
-      }
+      streamRef.current?.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
       if (videoRef.current) videoRef.current.srcObject = null;
     };
 
@@ -87,20 +83,21 @@ function App() {
 
   useEffect(() => {
     if (!isCameraOn || isBlocked || isSuccess) return;
+
     setCountdown(5);
     setIsCounting(true);
     setIsLocked(true);
-  }, [isCameraOn]);
+  }, [isCameraOn, isBlocked, isSuccess]);
 
   useEffect(() => {
     if (!isCounting) return;
-
     const interval = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev === 1) {
+      setCountdown(prev => {
+        if (prev <= 1) {
           clearInterval(interval);
           setIsCounting(false);
           setIsLocked(false);
+          return 0;
         }
         return prev - 1;
       });
@@ -109,16 +106,46 @@ function App() {
     return () => clearInterval(interval);
   }, [isCounting]);
 
+  useEffect(() => {
+    if (isCameraOn) return;
+    if (isBlocked || isSuccess) return;
+    if (!hasCameraBeenOn.current) return;
+
+    setIsCounting(false);
+    setIsLocked(false);
+    if (noGestureTimer) {
+      clearTimeout(noGestureTimer);
+      setNoGestureTimer(null);
+    }
+
+    if (attempts > 0) {
+      const newAttempts = attempts - 1;
+      setAttempts(newAttempts);
+
+      if (newAttempts <= 0) {
+        setIsBlocked(true);
+        return;
+      }
+
+      getRandomGestures();
+    }
+  }, [isCameraOn]);
+
   const normalize = (str) => str?.toLowerCase().replace(/[_\s]+/g, "").trim();
 
   useEffect(() => {
-    if (isCounting || isBlocked || isSuccess) return;
-    if (!gesture || selected.length === 0) return;
+    if (!isCameraOn || isCounting || isBlocked || isSuccess) return;
+    if (selected.length === 0) return;
 
-    const expectedGesture = selected[currentIndex]?.name;
+    if (gesture && noGestureTimer) {
+      clearTimeout(noGestureTimer);
+      setNoGestureTimer(null);
+    }
 
-    if (normalize(gesture) === normalize(expectedGesture)) {
-      setCompleted((prev) => {
+    const expected = selected[currentIndex]?.name;
+
+    if (gesture && normalize(gesture) === normalize(expected)) {
+      setCompleted(prev => {
         const updated = [...prev];
         updated[currentIndex] = true;
         return updated;
@@ -129,11 +156,11 @@ function App() {
         return;
       }
 
-      setCurrentIndex((prev) => prev + 1);
+      setCurrentIndex(prev => prev + 1);
       setCountdown(5);
       setIsCounting(true);
       setIsLocked(true);
-    } else {
+    } else if (gesture) {
       const newAttempts = attempts - 1;
       setAttempts(newAttempts);
 
@@ -143,35 +170,49 @@ function App() {
       }
 
       getRandomGestures();
-      setCurrentIndex(0);
-      setCompleted([false, false, false]);
-
       setCountdown(5);
       setIsCounting(true);
       setIsLocked(true);
     }
-  }, [isCounting, gesture]);
+  }, [gesture, isCameraOn, isCounting, isBlocked, isSuccess, currentIndex, selected, attempts]);
+
+  useEffect(() => {
+    if (!isCameraOn || isCounting || isBlocked || isSuccess) return;
+
+    if (!gesture) {
+      const timer = setTimeout(() => {
+        const newAttempts = attempts - 1;
+        setAttempts(newAttempts);
+
+        if (newAttempts <= 0) {
+          setIsBlocked(true);
+          return;
+        }
+
+        getRandomGestures();
+        setCountdown(5);
+        setIsCounting(true);
+        setIsLocked(true);
+      }, 500);
+
+      setNoGestureTimer(timer);
+      return () => clearTimeout(timer);
+    }
+  }, [gesture, isCameraOn, isCounting, isBlocked, isSuccess, attempts]);
 
   useEffect(() => {
     const intervalId = setInterval(() => {
       if (!isCameraOn) return;
-
       const video = videoRef.current;
       const canvas = canvasRef.current;
       const ws = wsRef.current;
 
-      if (video && canvas && ws?.readyState === WebSocket.OPEN) {
-        if (video.videoWidth > 0 && video.videoHeight > 0) {
-          const context = canvas.getContext("2d");
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-
-          context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-          canvas.toBlob((blob) => {
-            if (blob) ws.send(blob);
-          }, "image/jpeg", 0.7);
-        }
+      if (video && canvas && ws?.readyState === WebSocket.OPEN && video.videoWidth > 0) {
+        const context = canvas.getContext("2d");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(blob => blob && ws.send(blob), "image/jpeg", 0.7);
       }
     }, 100);
 
@@ -179,88 +220,93 @@ function App() {
   }, [isCameraOn]);
 
   return (
-    <div className="container">
-      <div className="app">
-        <div className="app__header">
-          <h1 className="app__title">Gesture Authentication</h1>
-          <div className="app__progress">Step {Math.min(currentIndex + 1, 3)} of 3</div>
-          <div className="app__progress-bar">
-            <div
-              className="app__progress-fill"
-              style={{ width: `${(completed.filter(Boolean).length / 3) * 100}%` }}
-            />
-          </div>
+    <div className="app">
+      <div className="app__header">
+        <h1 className="app__title">Gesture Authentication</h1>
+        <div className="app__progress">Step {Math.min(currentIndex + 1, 3)} of 3</div>
+        <div className="app__progress-bar">
+          <div className="app__progress-fill" style={{ width: `${(completed.filter(Boolean).length / 3) * 100}%` }} />
         </div>
-        <div className="app__content">
-          <div className="camera-card">
-            <div className="camera-card__media">
-              {!isCameraOn && (
-                <div className="camera-card__placeholder">
-                  <div className="camera-card__placeholder-text">Camera is off</div>
-                </div>
-              )}
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                className={`camera-card__video ${!isCameraOn ? "camera-card__video--hidden" : ""}`} />
-              {isCounting && (
-                <div className="camera-card__timer">
-                  0{countdown}
-                </div>
-              )}
-              {isBlocked && (
-                <div className="camera-card__message camera-card__message--error">
-                  Attempts ended
-                </div>
-              )}
-              {isSuccess && (
-                <div className="camera-card__message camera-card__message--success">
-                  Authentication complete
-                </div>
-              )}
-            </div>
-            <button
-              className={`camera-card__button ${isCameraOn ? "camera-card__button--off" : ""}`}
-              onClick={() => setIsCameraOn((prev) => !prev)}>
-              {isCameraOn ? "Turn Off Camera" : "Turn On Camera"}
-            </button>
+      </div>
+
+      <div className="app__content">
+        <div className="camera-card">
+          <div className="camera-card__media" style={{ position: "relative" }}>
+            {!isCameraOn && (
+              <div className="camera-card__placeholder">
+                <div className="camera-card__placeholder-text">Camera is off</div>
+              </div>
+            )}
+
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              className={`camera-card__video ${!isCameraOn ? "camera-card__video--hidden" : ""}`}
+            />
+
+            {isCounting && isCameraOn && (
+              <div style={{
+                position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+                fontSize: "120px", fontWeight: "bold", color: "#00ffcc",
+                textShadow: "0 0 20px rgba(0,255,200,0.8)"
+              }}>
+                {countdown}
+              </div>
+            )}
+
+            {isBlocked && (
+              <div style={{position:"absolute", bottom:"20px", width:"100%", textAlign:"center", fontSize:"48px", fontWeight:"bold", color:"red"}}>
+                ATTEMPTS ENDED
+              </div>
+            )}
+            {isSuccess && (
+              <div style={{position:"absolute", bottom:"20px", width:"100%", textAlign:"center", fontSize:"48px", fontWeight:"bold", color:"lime"}}>
+                SUCCESS! All gestures completed.
+              </div>
+            )}
           </div>
-          <div className="steps-card">
-            <div className={`steps-card__attempts ${attempts === 1 ? "steps-card__attempts--last" : ""}`}>
-              Attempts: {attempts}
-            </div>
-            <div className="steps-card__list">
-              {selected.map((g, i) => {
-                const isActive = i === currentIndex;
-                const isDone = completed[i];
-                return (
-                  <div
-                    key={i}
-                    className={`step ${isActive ? "step--active" : ""} ${isDone ? "step--done" : ""}`}
-                  >
-                    <div className="step__icon">
-                      {isDone ? "✓" : isActive ? "●" : i + 1}
-                    </div>
-                    <img src={g.img} alt={g.name} className="step__img" />
-                    <div className="step__info">
-                      <div className="step__name">{g.name}</div>
-                      <div className="step__status">
-                        {isDone ? "Completed" : isActive ? "Show this gesture" : "Waiting"}
-                      </div>
+
+          <button
+            className={`camera-card__button ${isCameraOn ? "camera-card__button--off" : ""}`}
+            onClick={() => setIsCameraOn(prev => !prev)}
+          >
+            {isCameraOn ? "Turn Off Camera" : "Turn On Camera"}
+          </button>
+        </div>
+
+        <div className="steps-card">
+          <div style={{ fontSize: "28px", fontWeight: "bold", color: attempts === 1 ? "red" : "#00ffcc", marginBottom: "10px" }}>
+            Attempts: {attempts}
+          </div>
+
+          <div className="steps-card__list">
+            {selected.map((g, i) => {
+              const isActive = i === currentIndex;
+              const isDone = completed[i];
+              return (
+                <div key={i} className={`step ${isActive ? "step--active" : ""} ${isDone ? "step--done" : ""}`}>
+                  <div className="step__icon">{isDone ? "✓" : isActive ? "●" : i + 1}</div>
+                  <img src={g.img} alt={g.name} className="step__img" />
+                  <div className="step__info">
+                    <div className="step__name">{g.name}</div>
+                    <div className="step__status">
+                      {isDone ? "Completed" : isActive ? "Show this gesture" : "Waiting"}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-            <div className="steps-card__status">
-              {gesture ? `Detected: ${gesture}` : isCameraOn ? "Waiting for gesture..." : "Camera is off"}
-            </div>
-            {error && <div className="steps-card__error">{error}</div>}
+                </div>
+              );
+            })}
           </div>
+
+          <div className="steps-card__status">
+            {gesture ? `Detected: ${gesture}` : isCameraOn ? "Waiting for gesture..." : "Camera is off"}
+          </div>
+          {error && <div className="steps-card__error">{error}</div>}
         </div>
-        <canvas ref={canvasRef} style={{ display: "none" }} />
       </div>
+
+      <canvas ref={canvasRef} style={{ display: "none" }} />
     </div>
   );
 }
