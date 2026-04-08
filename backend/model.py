@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse
 if getattr(sys, 'frozen', False):
     base_path = sys._MEIPASS
 else:
-    base_path = os.path.dirname(os.path.abspath(file))
+    base_path = os.path.dirname(os.path.abspath(__file__))
 
 app = FastAPI()
 
@@ -83,6 +83,6 @@ async def serve_frontend(full_path: str):
         return FileResponse(file_path)
     return FileResponse(os.path.join(dist_path, "index.html"))
 
-if name == "main":
+if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)
