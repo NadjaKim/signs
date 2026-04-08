@@ -179,132 +179,88 @@ function App() {
   }, [isCameraOn]);
 
   return (
-    <div className="app">
-      <div className="app__header">
-        <h1 className="app__title">Gesture Authentication</h1>
-        <div className="app__progress">Step {Math.min(currentIndex + 1, 3)} of 3</div>
-        <div className="app__progress-bar">
-          <div
-            className="app__progress-fill"
-            style={{ width: `${(completed.filter(Boolean).length / 3) * 100}%` }}
-          />
-        </div>
-      </div>
-
-      <div className="app__content">
-        <div className="camera-card">
-          <div className="camera-card__media" style={{ position: "relative" }}>
-            {!isCameraOn && (
-              <div className="camera-card__placeholder">
-                <div className="camera-card__placeholder-text">Camera is off</div>
-              </div>
-            )}
-
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              className={`camera-card__video ${!isCameraOn ? "camera-card__video--hidden" : ""}`}
+    <div className="container">
+      <div className="app">
+        <div className="app__header">
+          <h1 className="app__title">Gesture Authentication</h1>
+          <div className="app__progress">Step {Math.min(currentIndex + 1, 3)} of 3</div>
+          <div className="app__progress-bar">
+            <div
+              className="app__progress-fill"
+              style={{ width: `${(completed.filter(Boolean).length / 3) * 100}%` }}
             />
-
-            {isCounting && (
-              <div style={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                fontSize: "120px",
-                fontWeight: "bold",
-                color: "#00ffcc",
-                textShadow: "0 0 20px rgba(0,255,200,0.8)",
-                pointerEvents: "none"
-              }}>
-                {countdown}
-              </div>
-            )}
-
-            {isBlocked && (
-              <div style={{
-                position: "absolute",
-                bottom: "20px",
-                width: "100%",
-                textAlign: "center",
-                fontSize: "48px",
-                fontWeight: "bold",
-                color: "red",
-                pointerEvents: "none"
-              }}>
-                ATTEMPTS ENDED
-              </div>
-            )}
-
-            {isSuccess && (
-              <div style={{
-                position: "absolute",
-                bottom: "20px",
-                width: "100%",
-                textAlign: "center",
-                fontSize: "48px",
-                fontWeight: "bold",
-                color: "lime",
-                pointerEvents: "none"
-              }}>
-                SUCCESS! All gestures completed.
-              </div>
-            )}
           </div>
-
-          <button
-            className={`camera-card__button ${isCameraOn ? "camera-card__button--off" : ""}`}
-            onClick={() => setIsCameraOn((prev) => !prev)}
-          >
-            {isCameraOn ? "Turn Off Camera" : "Turn On Camera"}
-          </button>
         </div>
-
-        <div className="steps-card">
-          <div style={{
-            fontSize: "28px",
-            fontWeight: "bold",
-            color: attempts === 1 ? "red" : "#00ffcc",
-            marginBottom: "10px"
-          }}>
-            Attempts: {attempts}
+        <div className="app__content">
+          <div className="camera-card">
+            <div className="camera-card__media">
+              {!isCameraOn && (
+                <div className="camera-card__placeholder">
+                  <div className="camera-card__placeholder-text">Camera is off</div>
+                </div>
+              )}
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                className={`camera-card__video ${!isCameraOn ? "camera-card__video--hidden" : ""}`} />
+              {isCounting && (
+                <div className="camera-card__timer">
+                  0{countdown}
+                </div>
+              )}
+              {isBlocked && (
+                <div className="camera-card__message camera-card__message--error">
+                  Attempts ended
+                </div>
+              )}
+              {isSuccess && (
+                <div className="camera-card__message camera-card__message--success">
+                  Authentication complete
+                </div>
+              )}
+            </div>
+            <button
+              className={`camera-card__button ${isCameraOn ? "camera-card__button--off" : ""}`}
+              onClick={() => setIsCameraOn((prev) => !prev)}>
+              {isCameraOn ? "Turn Off Camera" : "Turn On Camera"}
+            </button>
           </div>
-
-          <div className="steps-card__list">
-            {selected.map((g, i) => {
-              const isActive = i === currentIndex;
-              const isDone = completed[i];
-              return (
-                <div
-                  key={i}
-                  className={`step ${isActive ? "step--active" : ""} ${isDone ? "step--done" : ""}`}
-                >
-                  <div className="step__icon">
-                    {isDone ? "✓" : isActive ? "●" : i + 1}
-                  </div>
-                  <img src={g.img} alt={g.name} className="step__img" />
-                  <div className="step__info">
-                    <div className="step__name">{g.name}</div>
-                    <div className="step__status">
-                      {isDone ? "Completed" : isActive ? "Show this gesture" : "Waiting"}
+          <div className="steps-card">
+            <div className={`steps-card__attempts ${attempts === 1 ? "steps-card__attempts--last" : ""}`}>
+              Attempts: {attempts}
+            </div>
+            <div className="steps-card__list">
+              {selected.map((g, i) => {
+                const isActive = i === currentIndex;
+                const isDone = completed[i];
+                return (
+                  <div
+                    key={i}
+                    className={`step ${isActive ? "step--active" : ""} ${isDone ? "step--done" : ""}`}
+                  >
+                    <div className="step__icon">
+                      {isDone ? "✓" : isActive ? "●" : i + 1}
+                    </div>
+                    <img src={g.img} alt={g.name} className="step__img" />
+                    <div className="step__info">
+                      <div className="step__name">{g.name}</div>
+                      <div className="step__status">
+                        {isDone ? "Completed" : isActive ? "Show this gesture" : "Waiting"}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+            <div className="steps-card__status">
+              {gesture ? `Detected: ${gesture}` : isCameraOn ? "Waiting for gesture..." : "Camera is off"}
+            </div>
+            {error && <div className="steps-card__error">{error}</div>}
           </div>
-
-          <div className="steps-card__status">
-            {gesture ? `Detected: ${gesture}` : isCameraOn ? "Waiting for gesture..." : "Camera is off"}
-          </div>
-
-          {error && <div className="steps-card__error">{error}</div>}
         </div>
+        <canvas ref={canvasRef} style={{ display: "none" }} />
       </div>
-
-      <canvas ref={canvasRef} style={{ display: "none" }} />
     </div>
   );
 }
