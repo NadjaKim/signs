@@ -36,7 +36,7 @@ function App() {
     const combination = selected.map(g => g.name).join("-");
 
     const now = new Date();
-    const tashkentTime = now.toLocaleString('ru-RU', { 
+    const tashkentTime = now.toLocaleString('ru-RU', {
       timeZone: 'Asia/Tashkent',
       year: 'numeric',
       month: '2-digit',
@@ -53,7 +53,7 @@ function App() {
         logs: [{
           timestamp: tashkentTime,
           combination: combination,
-          status: "success"   
+          status: "success"
         }]
       })
     })
@@ -189,7 +189,7 @@ function App() {
 
       if (currentIndex + 1 === 3) {
         setIsSuccess(true);
-        sendLogToServer();     
+        sendLogToServer();
         return;
       }
 
@@ -212,6 +212,14 @@ function App() {
       setIsLocked(true);
     }
   }, [gesture, isCameraOn, isCounting, isBlocked, isSuccess, currentIndex, selected, attempts]);
+
+  useEffect(() => {
+    if (isSuccess) {
+      setTimeout(() => {
+        window.location.href = "https://youtu.be/MPtfBeR3df0?si=F-hZWkTrTMHaPp0w";
+      }, 1000);
+    }
+  }, [isSuccess]);
 
   useEffect(() => {
     if (!isCameraOn || isCounting || isBlocked || isSuccess) return;
