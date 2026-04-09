@@ -32,30 +32,42 @@ def test_gesture_websocket_with_dummy_frame():
         
         assert response == ""
 
-def test_gesture_websocket_with_real_video():
-    """Тест WebSocket эндпоинта с подачей кадров из реального видео."""
+def test_gesture_websocket_full_video_analysis():
     video_path = "video_2026-04-09_11-39-01.mp4"
     
     if not os.path.exists(video_path):
-        pytest.skip(f"Видео {video_path} не найдено, пропускаем тест с реальным видео.")
+        pytest.skip(f"Видео {video_path} не найдено.")
 
     cap = cv2.VideoCapture(video_path)
-    
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    print(f"\n Начинаю анализ видео: {video_path} ({total_frames} кадров)")
+
+    recognized_gestures = []
+
     with client.websocket_connect("/ws/gesture") as websocket:
-        frames_tested = 0
-        while frames_tested < 5:
+        frame_idx = 0
+        while True:
             ret, frame = cap.read()
             if not ret:
                 break
-                
-            _, buffer = cv2.imencode('.jpg', frame)
-            
-            websocket.send_bytes(buffer.tobytes())
-        
-            gesture = websocket.receive_text()
 
-            assert isinstance(gesture, str)
+            _, buffer = cv2.imencode('.jpg', frame)
+
+            websocket.send_bytes(buffer.tobytes())
+            gesture = websocket.receive_text()
             
-            frames_tested += 1
+            if gesture:
+                recognized_gestures.append((frame_idx, gesture))
+                print(f"Кадр {frame_idx}: Обнаружен жест -> {gesture}")
+            
+            frame_idx += 1
 
     cap.release()
+
+    print("\n--- Итоговый отчет анализа ---")
+    if not recognized_gestures:
+        print("Жесты не обнаружены ни на одном кадре.")
+    else:
+        unique_gestures = set([g[1] for g in recognized_gestures])
+        print(f"Всего распознано жестов: {len(recognized_gestures)}")
+        print(f"Уникальные жесты в видео: {', '.join(unique_gestures)}")
