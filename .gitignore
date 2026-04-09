@@ -24,11 +24,11 @@ dist-ssr
 *.sln
 *.sw?
 # Python
-__pycache__/
+backend/__pycache__/
 
 # Build artifacts
-build/GestureApp/
-dist/
+backend/build/GestureApp/
+backend/dist/
 GestureApp.spec
 
 # Node.js / frontend
