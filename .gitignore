@@ -6,10 +6,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-eslint.config.js*
-package-lock.json*
-package.json*
-vite.config.js*
+
 
 node_modules
 dist
@@ -26,3 +23,16 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# Python
+__pycache__/
+
+# Build artifacts
+build/GestureApp/
+dist/
+GestureApp.spec
+
+# Node.js / frontend
+eslint.config.js
+package-lock.json
+package.json
+vite.config.js
