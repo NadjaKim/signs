@@ -100,6 +100,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from logger import GestureLogger   
 
 if getattr(sys, 'frozen', False):
     base_path = sys._MEIPASS
@@ -119,12 +120,7 @@ app.add_middleware(
 )
 
 LOG_FILE = os.path.join(data_path, "gesture_logs.csv")
-
-
-if not os.path.exists(LOG_FILE):
-    with open(LOG_FILE, mode='w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        writer.writerow(["timestamp", "combination", "status"])
+logger = GestureLogger(LOG_FILE)   
 
 model_path = os.path.join(base_path, "gesture_recognizer.task")
 options = mp.tasks.vision.GestureRecognizerOptions(
@@ -135,22 +131,16 @@ recognizer = mp.tasks.vision.GestureRecognizer.create_from_options(options)
 
 
 def is_in_center(hand_landmarks, threshold=0.17):
-    """Проверяет, находится ли рука в центральном диапазоне"""
     if not hand_landmarks or len(hand_landmarks) == 0:
         return False
-    
-    # Берём запястье (landmark 0) первой руки
     wrist = hand_landmarks[0][0]
-
     center_x_min = 0.5 - threshold  
     center_x_max = 0.5 + threshold   
     center_y_min = 0.5 - threshold  
     center_y_max = 0.5 + threshold
-    
     if (center_x_min <= wrist.x <= center_x_max and 
         center_y_min <= wrist.y <= center_y_max):
         return True
-    
     return False
 
 
@@ -175,7 +165,6 @@ async def gesture_endpoint(websocket: WebSocket):
             result = recognizer.recognize(mp_image)
             
             gesture = ""
-            # Отправляем жест только если он распознан И рука в центре
             if result.gestures and is_in_center(result.hand_landmarks):
                 gesture = result.gestures[0][0].category_name
                 
@@ -190,13 +179,7 @@ async def save_log(request: Request):
     try:
         data = await request.json()
         logs = data.get("logs", [])
-        with open(LOG_FILE, mode='a', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            for log in logs:
-                timestamp = log.get("timestamp", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-                combination = log.get("combination", "")
-                status = log.get("status", "success")
-                writer.writerow([timestamp, combination, status])
+        logger.log_batch(logs)        
         return {"status": "ok"}
     except Exception:
         return {"status": "error"}

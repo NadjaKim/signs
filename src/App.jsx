@@ -64,8 +64,8 @@ function App() {
         if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
         return res.json();
       })
-      .then(data => console.log("✅ Лог успешно записан:", data))
-      .catch(err => console.error("❌ Ошибка при отправке лога:", err));
+      .then(data => console.log("Лог успешно записан:", data))
+      .catch(err => console.error("Ошибка при отправке лога:", err));
   };
 
   const gestures = [
