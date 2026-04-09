@@ -12,8 +12,10 @@ from fastapi.responses import FileResponse
 
 if getattr(sys, 'frozen', False):
     base_path = sys._MEIPASS
+    data_path = os.path.dirname(sys.executable)
 else:
     base_path = os.path.dirname(os.path.abspath(__file__))
+    data_path = base_path
 
 app = FastAPI()
 
@@ -25,7 +27,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-LOG_FILE = os.path.join(base_path, "gesture_logs.csv")
+LOG_FILE = os.path.join(data_path, "gesture_logs.csv")
 
 if not os.path.exists(LOG_FILE):
     with open(LOG_FILE, mode='w', newline='', encoding='utf-8') as f:
