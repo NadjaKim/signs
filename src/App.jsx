@@ -8,6 +8,7 @@ import openPalm from "./gestures/open_palm.png";
 import victory from "./gestures/victory.png";
 import pointingUp from "./gestures/pointing_up.png";
 import iloveyou from "./gestures/iloveyou.png";
+import abayunda from "./gestures/ABAYUNDA.png"; 
 
 function App() {
   const videoRef = useRef(null);
@@ -33,7 +34,7 @@ function App() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [noGestureTimer, setNoGestureTimer] = useState(null);
 
-  const threshold = 0.17; // ← Уменьшил размер квадрата (чем меньше число — тем меньше квадрат)
+  const threshold = 0.17; 
 
   const sendLogToServer = () => {
     const combination = selected.map(g => g.name).join("-");
@@ -76,6 +77,7 @@ function App() {
     { name: "Victory", img: victory },
     { name: "Pointing Up", img: pointingUp },
     { name: "ILoveYou", img: iloveyou },
+    {name: "ABAYUNDA",img: abayunda},
   ];
 
   const getRandomGestures = () => {
@@ -86,7 +88,7 @@ function App() {
     setCompleted([false, false, false]);
   };
 
-  // Рисуем центральную рамку
+
   const drawCenterFrame = () => {
     const overlay = overlayCanvasRef.current;
     const video = videoRef.current;
@@ -102,13 +104,12 @@ function App() {
     const centerY = overlay.height * 0.5;
     const size = overlay.width * threshold * 2;
 
-    // Основная рамка
     ctx.strokeStyle = "rgba(0, 255, 200, 0.8)";
     ctx.lineWidth = 3;
     ctx.setLineDash([10, 5]);
     ctx.strokeRect(centerX - size / 2, centerY - size / 2, size, size);
 
-    // Уголки
+    
     ctx.setLineDash([]);
     ctx.lineWidth = 5;
     const c = 28;
